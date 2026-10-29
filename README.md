@@ -13,6 +13,7 @@ The workspace is still under development, so its packages, setup instructions, a
 
 - `custom_interbotix_xarms_description` — PX150 URDF/Xacro model, meshes, controller configuration, and visualization launch files.
 - `custom_interbotix_xarms_moveit` — MoveIt 2 configuration and launch files for the PX150.
+- `custom_interbotix_xarms_bringup` — Gazebo Sim and MoveIt bringup launch for the PX150.
 - `interbotix_arms_controller` — a Python ROS 2 controller node for sending a home command to the arm.
 
 ### Differential-drive robot
@@ -38,6 +39,41 @@ source install/setup.bash
 ```
 
 Replace `<ros_distro>` with your installed ROS 2 distribution. Source `install/setup.bash` in each new terminal before using the packages.
+
+## PX150 Gazebo and MoveIt simulation
+
+The `custom_interbotix_xarms_bringup` package provides a launch file that starts
+the PX150 in Gazebo Sim and then connects its ROS 2 controllers and MoveIt:
+
+```bash
+ros2 launch custom_interbotix_xarms_bringup custom_interbotix_gz.launch.py
+```
+
+Simulation time is enabled by default. To override it, pass the `use_sim_time`
+launch argument:
+
+```bash
+ros2 launch custom_interbotix_xarms_bringup custom_interbotix_gz.launch.py use_sim_time:=false
+```
+
+The launch starts the system in this order:
+
+1. `robot_state_publisher` publishes the PX150 description. The Xacro is
+   expanded with `gz_sim:=true`, which configures the `gz_ros2_control`
+   simulation hardware.
+2. Gazebo Sim starts, along with a bridge that forwards Gazebo's `/clock` topic
+   to ROS. The `use_sim_time` setting is also applied to the launch's nodes and
+   inherited by the included MoveIt launch actions.
+3. `ros_gz_sim create` spawns the robot as `px150` from `/robot_description`.
+4. The `controller_manager` spawners load `arm_controller`,
+   `gripper_controller`, and `joint_state_broadcaster` sequentially.
+5. MoveGroup and MoveIt RViz start using the PX150 configuration from
+   `custom_interbotix_xarms_moveit`.
+
+`gripper_controller` retains its existing name and behavior:
+`position_controllers/GripperActionController` controls the `gripper` joint.
+The original mention of a `joint_controller` spawner was an error; this launch
+uses the configured `gripper_controller` instead.
 
 ## Fork and customize
 
